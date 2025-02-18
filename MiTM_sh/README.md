@@ -28,3 +28,4 @@ Usage:
     [Ettercap Notes] -
         [MITM-PROXY]: Proxy Configuration: Ensure mitmproxy runs on port 8080 and your firewall allows traffic. HTTPS Limitations: This script only redirects HTTP. For HTTPS, combine with sslstrip or use a trusted CA certificate and riderct to proxy. This gives better certainty of the attack success.
 """
+
