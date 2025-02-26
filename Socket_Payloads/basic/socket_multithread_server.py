@@ -56,8 +56,8 @@ def handle_client(client_socket, addr):
 
     finally:
         client_socket.close()
-        print("[-] Client socket closed")
-        logging.info("Client socket closed")
+        print(f"[-] {addr} Client socket closed")
+        logging.info("Client socket closed \n", addr , " and client socket closed")
 
 
 '''The main function sets up the server socket, binds it to the hostname and port, and starts listening for incoming connections. When a client connects, a new thread is created to handle the client using the handle_client function. This allows the server to handle multiple clients concurrently.'''
