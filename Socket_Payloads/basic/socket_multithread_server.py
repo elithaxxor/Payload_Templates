@@ -56,8 +56,8 @@ def handle_client(client_socket, addr):
 
     finally:
         client_socket.close()
-        print(f"[-] {addr} Client socket closed")
-        logging.info("Client socket closed \n", addr , " and client socket closed")
+        print("[-] Client socket closed")
+        logging.info("Client socket closed")
 
 
 '''The main function sets up the server socket, binds it to the hostname and port, and starts listening for incoming connections. When a client connects, a new thread is created to handle the client using the handle_client function. This allows the server to handle multiple clients concurrently.'''
@@ -70,32 +70,28 @@ def main():
     logging.info(f"Server listening on port {CLIENT_PORT}")
     print("[!] Server is running. Waiting for connections...")
     print("[!]  Accept clients and start a new thread for each one, allowing multiple clients to connect simultaneously ")
-    #time.sleep(1)
+    time.sleep(1000)
+    
     '''#2. Accept clients and start a new thread for each one, allowing multiple clients to connect simultaneously '''
-
+    
     '''# The `start` method in the code is used to start the execution of a thread. In the context of the provided code snippet, when `client_handler.start()` is called, it initiates the execution of the thread represented by `client_handler`. This allows the server to handle multiple clients concurrently by creating a new thread for each incoming client connection.'''
     counter = 0
     while True:
-        print("[-] Attempting to start new thread #", counter)
         client_socket, addr = server_socket.accept()
         client_handler = threading.Thread(target=handle_client, args=(client_socket, addr))
-        logging.info(f"Server started New thread started for {addr}")
-
-        if client_handler.start() != True:
-            print(f"[-] Server started New thread started for {addr}")
-            print(".. checking if handle starter is alive: ", client_handler.is_alive())
-            counter = counter + 1
+        
+        if client_handler.start():
+            logging.info(f"Server started New thread started for {addr}")
+            print(f"[+] Server started New thread started for {addr}")
             client_handler.start()
-
-        logging.info(f"Server started New thread started for {addr} and count is: {counter}")
-        print(f"[+] Server started New thread started for {addr} and count is: {counter}")
+            
+        print("[-] Attempting to start new thread #", counter)
+        counter = counter + 1
         client_handler.start()
-
-
 
 if __name__ == "__main__":
     logging.info("Starting server...")
-    print("[!] Update to use threading for multiple clients on server. The main function creates a server socket, binds to the host's name and CLIENT_PORT, \nlistens for connections. \nThen in a loop, it accepts clients, starts a new thread for each, passing the client socket and address to handle_client")
+    print("[!] Update to use threading for multiple clients on server. The main function creates a server socket, binds to the host's name and CLIENT_PORT, listens for connections. Then in a loop, it accepts clients, starts a new thread for each, passing the client socket and address to handle_client")
     print("\n\n[!] Server is running. Waiting for connections...")
     main()
 
