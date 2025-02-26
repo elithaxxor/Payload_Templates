@@ -1,17 +1,11 @@
-
 import socket
+                      
 import threading
 import os
 import logging
 import time
 import struct
 import signal
-
- """
-        The above Python script is a server program that listens for incoming connections, handles file transfer requests from clients, and logs connection details and errors.
-        :param client_socket: The `client_socket` parameter in the code represents the socket object that is used for communication with a client. It is created when a client connects to the server and is passed to the `handle_client` function to manage the communication with that specific client. The `client_socket` object allows sending and
-       :param addr: The `addr` parameter in the `handle_client` function represents the address of the client that has connected to the server. It typically contains the IP address and port number of the client. This information is used for logging and displaying details about the client connection
- """
 
 BUFFER_SIZE = 16384
 CLIENT_PORT = 22223
@@ -29,53 +23,113 @@ logging.basicConfig(
 # Connection limiter
 connection_pool = threading.BoundedSemaphore(MAX_CONNECTIONS)
 
+def send_directory_listing(client_socket):
+    """Send list of available files to client"""
+    try:
+        # Get list of files (excluding directories)
+        files = [f for f in os.listdir('.') if os.path.isfile(f)]
+        print("[+] Files available \n", files)
+        # Create formatted listing
+        listing = "\n".join([
+            f"{file} - {os.path.getsize(file)} bytes" 
+            for file in files
+        ]) or "No files available"
+        
+        print(f"[+] {client_socket} requested Listings available  \n", listing)
+        logging.info(f"[+] {client_socket} requested Listings available  \n", listing)
+
+        # Send listing with header
+        header = struct.pack('Q', len(listing))
+        client_socket.sendall(header)
+        client_socket.sendall(listing.encode())
+        print("[+] Sent directory to client: ", client_socket)
+        logging.info("Sent directory listing to client")
+        
+    except Exception as e:
+        logging.error(f"Directory listing error: {str(e)}")
+        print("[-] Directory listing occurred, sending blank struct.. : error: \n", e)
+        client_socket.sendall(struct.pack('Q', 0))  # Send empty listing
+        
+        
 def handle_client(client_socket, addr):
     try:
+        '''#1 ------------ Connection CENTER --------------'''
+
         client_socket.settimeout(TIMEOUT)
         logging.info(f"Connection from {addr}")
         print(f"[+] Connected to {addr}")
+        
+'''#2 ------------ COMMAND CENTER --------------'''
 
-        # Receive metadata header (50 bytes name + 8 bytes size)
-        header = client_socket.recv(58)
-        if len(header) != 58:
-            raise ValueError(f"Invalid header length: {len(header)}")
 
-        file_name, file_size = struct.unpack('50sQ', header)
-        file_name = file_name.decode('utf-8').rstrip('\x00')
-        file_name = os.path.basename(file_name)  # Security sanitization
-
-        if not os.path.exists(file_name):
-            raise FileNotFoundError(f"File {file_name} not found")
-
-        logging.info(f"Sending {file_name} ({file_size} bytes)")
-        print(f"[*] Transferring {file_name} ({file_size} bytes)")
-
-        bytes_sent = 0
-        start_time = time.time()
-
-        with open(file_name, "rb") as f:
-            while True:
-                data = f.read(BUFFER_SIZE)
-                if not data:
-                    break
-                client_socket.sendall(data)
-                bytes_sent += len(data)
-
-                # Progress logging
-                if bytes_sent % (BUFFER_SIZE * 10) == 0:  # Log every 10 buffers
-                    print(f"Sent {bytes_sent}/{file_size} bytes")
-
-        duration = time.time() - start_time
-        logging.info(f"Transfer complete in {duration:.2f}s")
-        print(f"[+] Transfer completed in {duration:.2f} seconds")
-
-    except Exception as e:
-        logging.error(f"Error with {addr}: {str(e)}")
-        print(f"[-] Error: {str(e)}")
-        try:
-            client_socket.send(f"<ERROR>{str(e)}".encode())
-        except:
+## 4BYTE Commands from client to server
+        command = client_socket.recv(4).decode() 
+        print(f"[!] Command {Command} called by: {addr}")
+        logging.info(f"[!] Command {Command} called by: {addr}")
+        if command == "EXIT":
+            client_socket.close()
+            return
+        
+        if command == "LIST":
+            files = os.listdir(os.getcwd()) # UNSAFE AND SHOULD REMOVE
+            client_socket.sendall(str(files).encode()) # UNSAFE AND SHOULD REMOVE
+            send_directory_listing(client_socket) # SAFE AND SHOULD KEEP 
+            print(f"Files: {files}")
+            return
+        
+        elif command == "CHAT":
             pass
+        
+        
+        elif command == 'FILE':
+            header = client_socket.recv(58)
+            print("Header: \r", header)
+            
+            if len(header) != 58:
+                raise ValueError(f"Invalid header length: {len(header)}")
+
+            file_name, file_size = struct.unpack('50sQ', header) # 58 bytes 50 for file name 8 for size
+            file_name = file_name.decode('utf-8').rstrip('\x00')
+            print(file_name)
+            file_name = os.path.basename(file_name)  # Security sanitizatio
+            print(file_name)
+            file_name = os.path.join(os.getcwd(), file_name)  # Full path for security
+            print(file_name)
+
+            
+            
+            if not os.path.exists(file_name):
+                raise FileNotFoundError(f"File {file_name} not found")
+
+            logging.info(f"Sending {file_name} ({file_size} bytes)")
+            print(f"[*] Transferring {file_name} ({file_size} bytes)")
+
+            bytes_sent = 0
+            start_time = time.time()
+
+            with open(file_name, "rb") as f:
+                while True:
+                    data = f.read(BUFFER_SIZE)
+                    if not data:
+                        break
+                    client_socket.sendall(data)
+                    bytes_sent += len(data)
+
+                    # Progress logging
+                    if bytes_sent % (BUFFER_SIZE * 10) == 0:  # Log every 10 buffers
+                        print(f"Sent {bytes_sent}/{file_size} bytes")
+
+            duration = time.time() - start_time
+            logging.info(f"Transfer complete in {duration:.2f}s")
+            print(f"[+] Transfer completed in {duration:.2f} seconds")
+
+        except Exception as e:
+            logging.error(f"Error with {addr}: {str(e)}")
+            print(f"[-] Error: {str(e)}")
+            try:
+                client_socket.send(f"<ERROR>{str(e)}".encode())
+            except:
+                pass
 
     finally:
         client_socket.close()
