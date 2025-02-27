@@ -100,7 +100,9 @@ This tool can be extended for a variety of advanced use cases:
   Perfect for educators and learners, the script demonstrates core DNS concepts, such as query parsing, response construction, and protocol handling.
 
 ---
-
+```markdown
+[NOTE] \*\*Happy testing and exploring! NO ILLEGAL STUFF !!! \*\*
+```
 ## How to Use
 
 ### Running the Script
@@ -177,7 +179,8 @@ This tool can be extended for a variety of advanced use cases:
     - Old logs are archived with a timestamp.
     - Example: dns_queries_2023-10-01.log
 ```
-```angular2html
+
+angular2html
   ## [Log Rotation] 
       - The script uses the logging module to handle log rotation and archiving.
       - The log files are stored in the same directory as the script.
@@ -185,9 +188,12 @@ This tool can be extended for a variety of advanced use cases:
       - Old logs are archived with a timestamp.
       - Example: <dns_queries_2023-10-01 class="log"> </dns_queries_2023-10-01>
 ```
-# USE CASES 
+# USE CASES
+[NOTE] 
 ## Custom Domain and IP
-Modify the script to set custom domain-to-IP mappings. This allows you to simulate specific DNS responses for testing. The DNS response is constructed in the `handle` method of both the `DNSUDPHandler` and `DNSTCPHandler` classes. Here is a step-by-step explanation:
+
+\*\*Embrace the power of DNS simulation and elevate your testing, security research, and learning experiences with this comprehensive tool. Happy testing and exploring!\n\nModify the script to set custom domain-to-IP mappings. This allows you to simulate specific DNS responses for testing. The DNS response is constructed in the `handle` method of both the `DNSUDPHandler` and `DNSTCPHandler` classes. Here is a step-by-step explanation:
+\*\*
 
 1. **Parse the DNS request**:  
    The incoming DNS request is parsed using `DNSRecord.parse(data)` for UDP and `DNSRecord.parse(data[2:])` for TCP (skipping the first 2 bytes which are the length prefix in TCP DNS).
@@ -210,3 +216,5 @@ Modify the script to set custom domain-to-IP mappings. This allows you to simula
   - For UDP, the response is sent back to the client using `sock.sendto(reply.pack(), self.client_address)`.
   - For TCP, the response is sent back using `conn.sendall(len(response_data).to_bytes(2, 'big') + response_data)`.
   - The `conn.sendall` method sends the response data back to the client over TCP.
+
+----------------------------------------------------------------------------------------------
