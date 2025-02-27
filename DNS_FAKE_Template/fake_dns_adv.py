@@ -9,11 +9,17 @@ It supports both UDP and optional TCP.
 import socketserver
 import sys
 import logging
-import time
+from logging.handlers import RotatingFileHandler
 from collections import defaultdict
 from dnslib import DNSRecord, QTYPE, RR, A
 
-# Configure logging
+# Configure logging with rotation
+log_handler = RotatingFileHandler("dns_queries.log", maxBytes=5*1024*1024, backupCount=5)
+log_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
+logger = logging.getLogger("DNSLogger")
+logger.setLevel(logging.INFO)
+logger.addHandler(log_handler)
+
 logging.basicConfig(
     filename="dns_queries.log",
     level=logging.INFO,
@@ -34,12 +40,8 @@ def log_query(client_ip, query, response):
         response (str): The IP address returned in response to the query.
     """
     query_tracker[(client_ip, query)] += 1
-    logging.info("Query received from %(client_ip)s for %(query)s -> %(response)s (Query count: %(frequency)d)", extra={
-        "client_ip": client_ip,
-        "query": query,
-        "response": response,
-        "frequency": query_tracker[(client_ip, query)]
-    })
+    frequency = query_tracker[(client_ip, query)]
+    logger.info(f"Client: {client_ip}, Query: {query}, Response: {response}, Frequency: {frequency}")
 
 # Dictionary mapping domain names to IP addresses.
 DOMAIN_IP_MAP = {
@@ -58,35 +60,30 @@ class DNSUDPHandler(socketserver.BaseRequestHandler):
         Handles incoming DNS requests over UDP.
         """
         data, sock = self.request
-        client_ip = self.client_address[0]  # Extract client IP
-
+        client_ip = self.client_address[0]
         # Log the client IP address
-        logging.info(f"Received DNS request from {client_ip}")
+        logger.info(f"Received DNS request from {client_ip}")
         print(f"Received DNS request from {client_ip}")
         # Increment the query count for the client IP
         query_tracker[client_ip] += 1
-        # Log the query count and parse dns request
         try:
             request = DNSRecord.parse(data)
+            print(f"[!]Parsed UDP DNS request: {request}")
+            logger.info(f"Parsed UDP DNS request: {request}")
+
         except Exception as e:
-            logging.error(f"Failed to parse DNS request from {client_ip}: {e}")
+            logger.error(f"Failed to parse DNS request from {client_ip}: {e}")
+            print(f"Failed to parse DNS request from {client_ip}: {e}")
             return
 
         qname = str(request.q.qname)
         qtype = QTYPE[request.q.qtype]
-
-        # Determine the IP address to return based on the queried domain.
-        ip_address = DOMAIN_IP_MAP.get(qname, "192.168.1.1")  # Default IP if domain not found.
-
-        # Log the query and response
-        reply = DNSRecord(DNSRecord.header(request), q=request.q)
-        reply.add_answer(RR(qname, QTYPE.A, rdata=A(ip_address), ttl=60))
+        ip_address = DOMAIN_IP_MAP.get(qname, "192.168.1.100")
 
         log_query(client_ip, qname, ip_address)
         query_count = query_tracker[(client_ip, qname)]
         print(f"Received query from {client_ip} for: {qname} ({qtype}) -> {ip_address} (Query count: {query_count})")
 
-        # Build a DNS response with an A record using the determined IP.
         reply = DNSRecord(DNSRecord.header(request), q=request.q)
         reply.add_answer(RR(qname, QTYPE.A, rdata=A(ip_address), ttl=60))
         sock.sendto(reply.pack(), self.client_address)
@@ -101,26 +98,18 @@ class DNSTCPHandler(socketserver.BaseRequestHandler):
         """
         conn = self.request
         client_ip = self.client_address[0]
-        # Log the client IP address
-        logging.info(f"Received TCP connection from {client_ip}")
-        print(f"Received TCP connection from {client_ip}")
         try:
-            print(f"[*] Receiving TCP DNS request from {client_ip}")
             data = conn.recv(1024)
-            request = DNSRecord.parse(data[2:])  # TCP DNS-- skip first 2 bytes
-            print(f"[!]Parsed TCP DNS request: {client_ip} : {request}")
-            logging.info(f"Parsed TCP DNS request: {client_ip} : {request}")
-
+            request = DNSRecord.parse(data[2:])
         except Exception as e:
-            logging.error(f"Failed to parse DNS request from {client_ip} over TCP: {e}")
-            print(f"Failed to parse DNS request from {client_ip} over TCP: {e}")
+            logger.error(f"Failed to parse DNS request from {client_ip} over TCP: {e}")
             conn.close()
             return
 
         qname = str(request.q.qname)
         qtype = QTYPE[request.q.qtype]
-
         ip_address = DOMAIN_IP_MAP.get(qname, "192.168.1.100")
+
         log_query(client_ip, qname, ip_address)
         query_count = query_tracker[(client_ip, qname)]
         print(f"Received TCP query from {client_ip} for: {qname} ({qtype}) -> {ip_address} (Query count: {query_count})")
@@ -131,13 +120,11 @@ class DNSTCPHandler(socketserver.BaseRequestHandler):
         conn.sendall(len(response_data).to_bytes(2, 'big') + response_data)
         conn.close()
 
-if __name__ == "__main__":
-    # Allow port override via command-line argument.
-    port = 53
-    if len(sys.argv) > 1:
-        port = int(sys.argv[1])
-
-    print(f"[!] Starting fake DNS server on UDP and TCP port {port}")
+def main():
+    """
+    Main function to start the fake DNS server on UDP and TCP ports.
+    """
+    print(f"Starting fake DNS server on UDP and TCP port {port}")
     udp_server = socketserver.UDPServer(('', port), DNSUDPHandler)
     tcp_server = socketserver.TCPServer(('', port), DNSTCPHandler)
 
@@ -148,48 +135,27 @@ if __name__ == "__main__":
 
         udp_thread.start()
         tcp_thread.start()
-        if udp_thread.is_alive():
-            print("[+] UDP server started.")
-            print(udp_thread.is_alive())
-            #udp_thread.join()
 
-        if tcp_thread.is_alive():
-            print("[+] TCP server started.")
-            print(tcp_thread.is_alive())
-            #tcp_thread.join()
-        # Start the UDP and TCP servers in separate threads
-        # Wait for both threads to finish (they won't in this case, as they run indefinitely)
         udp_thread.join()
         tcp_thread.join()
-        print("[+] lUDP and TCP servers are running.")
-        # Keep the main thread alive to allow the servers to run indefinitely.
-        while udp_thread.is_alive() and tcp_thread.is_alive():
-            udp_thread.join(1)
-            tcp_thread.join(1)
-            print("[+] UDP and TCP servers are running.")
-            # Add a small sleep to avoid busy waiting
-            time.sleep(1)
-
-    except KeyboardInterrupt:
-        print("[-] Shutting down servers...")
-        udp_server.shutdown()
-        tcp_server.shutdown()
-        udp_server.server_close()
-        tcp_server.server_close()
-        print("[-] Servers shut down.")
-        logging.info("Servers shut down.")
 
     except Exception as e:
-        logging.error(f"[-] Error starting server: {e}")
+        logger.error(f"[-] Error starting server: {e}")
         print(f"[-] Error starting server: {e}")
         udp_server.shutdown()
         tcp_server.shutdown()
-        udp_server.server_close()
-        tcp_server.server_close()
-        print("[-] Servers shut down.")
 
-        logging.info("Servers shut down.")
-    finally:
-        udp_thread.join(1)
-        tcp_thread.join(1)
-        print("[+] UDP and TCP servers are running.")
+        print("[-] Fake DNS server shut down.")
+    except KeyboardInterrupt:
+        print("[-] Keyboard shutdown.. Shutting down fake DNS server.")
+        logger.error("[-] Keyboard shutdown.. Shutting down fake DNS server.")
+        udp_server.shutdown()
+        tcp_server.shutdown()
+        print("[-] Fake DNS server shut down.")
+        logger.info("[-] Fake DNS server shut down.")
+
+if __name__ == "__main__":
+    port = 53
+    if len(sys.argv) > 1:
+        port = int(sys.argv[1])
+    main()
