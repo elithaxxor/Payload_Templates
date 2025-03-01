@@ -8,14 +8,6 @@
 #include <fcntl.h>
 #include <sys/ioctl.h>
 #include <stdbool.h> // For bool type
-
-// TODO: Run across platfors
-// TODO: Request user if they want automized mac / ip randomization
-// TODO: Make it so it logs, and hides in useres desktop (hidden)
-// TODO: Reverse TCP-shell
-// TODO: Find logs and password hashes and store them
-// TODO: Link to NetVision for IOT Grepping
-
 #ifdef _WIN32
     #include <winsock2.h>
     #include <windows.h>
@@ -52,9 +44,16 @@
 #define COLOR_BOLD "\033[1m"
 
 
+// TODO: Run across platfors
+// TODO: Request user if they want automized mac / ip randomization
+// TODO: Make it so it logs, and hides in useres desktop (hidden)
+// TODO: Reverse TCP-shell
+// TODO: Find logs and password hashes and store them
+// TODO: Link to NetVision for IOT Grepping
 // #TODO Add functionality to change interal IP to proxy
 // #TODO Add logging and print
 // #TODO Finish Proxy Server
+
 
 // Define a constant for the separator
 #define SEPARATOR "==================================================================="
