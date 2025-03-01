@@ -4,6 +4,10 @@
 #include <regex.h>
 #include <unistd.h>
 #include <time.h>
+#include <sys/utsname.h> // Grabs system info
+#include <fcntl.h>
+#include <sys/ioctl.h>
+#include <stdbool.h> // For bool type
 
 #ifdef _WIN32
     #include <winsock2.h>
@@ -11,8 +15,10 @@
     #include <iphlpapi.h>
     #pragma comment(lib, "ws2_32.lib")
     #pragma comment(lib, "iphlpapi.lib")
+
     #define OS_TYPE "Windows"
 #else
+
     #include <sys/types.h>
     #include <sys/socket.h>
     #include <netinet/in.h>
@@ -46,13 +52,15 @@
 // Define a constant for the separator
 #define SEPARATOR "==================================================================="
 // Define a constant for the menu title
+
+
 char* get_internal_ip();
 char* get_external_ip();
 char* get_current_mac(const char* interface);
 void renew_ip();
 char* change_mac(const char* interface);
 void revert_mac(const char* interface);
-
+//void* populate_sysinfo(Darwin_SysInfo* sysinfo);
 // Function to clear the screen (cross-platform)
 void clear_screen() {
     #ifdef _WIN32
@@ -76,6 +84,9 @@ char* execute_command(const char* command) {
     FILE* fp;
     char* output = malloc(4096); // Allocate enough space for command output
     char buffer[1024];
+    char* result = NULL;
+    size_t size = 0;
+   // free(output);
 
     if (output == NULL) {
         fprintf(stderr, "%sMemory allocation failed%s\n", COLOR_RED, COLOR_NC);
@@ -97,14 +108,28 @@ char* execute_command(const char* command) {
     output[0] = '\0'; // Initialize empty string
     while (fgets(buffer, sizeof(buffer), fp) != NULL) {
         strcat(output, buffer);
+        size_t len = strlen(buffer);
+        char* temp = realloc(result, size + len + 1);
+        if (!temp) {
+            fprintf(stderr, COLOR_RED "Error: Memory allocation failed\n" COLOR_NC);
+            free(result);
+            //pclose(pipe*);
+            return NULL;
+        }
+        result = temp;
+        strcpy(result + size, buffer);
+        size += len;
     }
+
+
 
     #ifdef _WIN32
         _pclose(fp);
     #else
         pclose(fp);
     #endif
-
+   // free(output);
+    free(result);
     return output;
 }
 
@@ -475,6 +500,7 @@ void show_network_info() {
     char* internal_ip = get_internal_ip();
     if (internal_ip) {
         printf("Internal IP address: %s%s%s\n", COLOR_GREEN, internal_ip, COLOR_NC);
+        free(internal_ip);
     } else {
         printf("Internal IP address: %sUnknown%s\n", COLOR_RED, COLOR_NC);
     }
@@ -615,6 +641,224 @@ void ip_address_operations() {
         }
     }
 }
+/*==========================================================================================*/
+// * Checks architecture and compiler
+#ifdef _WIN32
+    printf("[+] Windows System Architecture: %s%s%s\n", COLOR_GREEN, sizeof(void*) == 8 ? "x64" : "x86", COLOR_NC);
+
+#if defined(__MINGW32__) || defined(__MINGW64__)
+    printf("[+] Windows Compiler: %s%s%s\n", COLOR_GREEN, "MinGW", COLOR_NC);
+#elif defined(_MSC_VER)
+    printf("[+] Windows Compiler: %s%s%s\n", COLOR_GREEN, "MSVC", COLOR_NC);
+#endif
+#endif
+
+
+/*==========================================================================================*/
+
+// [DARWIN]--> Struct to hold darwin info.
+    // Structure to hold Darwin system information
+    typedef struct {
+        // System Version Information
+        char* product_version;
+        char* build_version;
+        char* product_name;
+        char* architecture;
+        char* os_version;
+        char* kernel_version;
+
+        // Host and User Information
+        char* computer_name;
+        char* hostname;
+        char* user_name;
+
+        // Hardware Information
+        char* model;
+        char* serial_number;
+        char* hardware_uuid;
+        char* cpu_info;
+
+        char* num_cpu_cores;
+        char* memory_size;
+        char* memory_info;
+        char* disk_info;
+
+        // Kernel Information
+        // char* kernel_version;
+
+        // System Status
+        char* uptime;
+        char* load_average;
+        char* swap_usage;
+        char* available_disk_space;
+        char* cpu_temperature;
+        char* battery_percentage;
+
+
+        // Network Information
+        char* ip_address;
+        char* gateway;
+        char* internal_ip;
+        char* external_ip;
+        char* mac_address;
+    } Darwin_SysInfo;
+
+#define MENU_TITLE "Darwin System Information Tool"
+
+// Function to populate the Darwin_SysInfo structure
+void populate_sysinfo(Darwin_SysInfo* sysinfo) {
+    if (sysinfo == NULL)
+    {
+        printf("[-] Null error in Darwin. ");
+        return; // Safety check
+    }
+    sysinfo->product_version = execute_command("sw_vers -productVersion");
+    sysinfo->build_version = execute_command("sw_vers -buildVersion");
+    sysinfo->product_name = execute_command("sw_vers -productName");
+    sysinfo->computer_name = execute_command("scutil --get ComputerName");
+    sysinfo->user_name = execute_command("scutil --get UserName");
+    sysinfo->model = execute_command("sysctl -n hw.model");
+    //sysinfo->serial_number = execute_command("system_profiler SPHardwareDataType | awk '/Serial/ {print $4}'");
+    // sysinfo->hardware_uuid = execute_command("system_profiler SPHardwareDataType | awk '/Hardware UUID/ {print $3}'");
+    sysinfo->architecture = execute_command("uname -m");
+    sysinfo->kernel_version = execute_command("uname -r");
+    sysinfo->uptime = execute_command("uptime");
+    sysinfo->load_average = execute_command("sysctl -n vm.loadavg");
+    sysinfo->num_cpu_cores = execute_command("sysctl -n hw.ncpu");
+    sysinfo->memory_size = execute_command("sysctl -n hw.memsize");
+    sysinfo->swap_usage = execute_command("sysctl -n vm.swapusage");
+//  sysinfo->available_disk_space = execute_command("df -h / | awk '/\// {print $4}'");
+    sysinfo->cpu_temperature = execute_command("sysctl -n machdep.xcpm.cpu_thermal_level");
+    sysinfo->battery_percentage = execute_command("pmset -g batt | grep -o '[0-9]*%'");
+    sysinfo->ip_address = execute_command("ifconfig en0 | grep 'inet '");
+    sysinfo->gateway = execute_command("netstat -nr | grep 'default '");
+
+    sysinfo->kernel_version = execute_command("uname -r");
+    sysinfo->uptime = execute_command("uptime");
+    sysinfo->load_average = execute_command("sysctl -n vm.loadavg");
+    sysinfo->num_cpu_cores = execute_command("sysctl -n hw.ncpu");
+    sysinfo->memory_size = execute_command("sysctl -n hw.memsize");
+
+}
+
+// Function to free the allocated memory
+void free_sysinfo(Darwin_SysInfo* sysinfo) {
+     if (sysinfo == NULL) return;
+
+    free(sysinfo->product_version);
+    free(sysinfo->build_version);
+    free(sysinfo->product_name);
+    free(sysinfo->computer_name);
+    free(sysinfo->user_name);
+    free(sysinfo->model);
+    free(sysinfo->serial_number);
+    free(sysinfo->hardware_uuid);
+    free(sysinfo->architecture);
+    free(sysinfo->kernel_version);
+    free(sysinfo->uptime);
+    free(sysinfo->load_average);
+    free(sysinfo->num_cpu_cores);
+    free(sysinfo->memory_size);
+    free(sysinfo->swap_usage);
+    free(sysinfo->available_disk_space);
+    free(sysinfo->cpu_temperature);
+    free(sysinfo->battery_percentage);
+    free(sysinfo->ip_address);
+    free(sysinfo->gateway);
+
+    // Set all pointers to NULL after freeing, to prevent double frees
+    sysinfo->product_version = NULL;
+    sysinfo->build_version = NULL;
+    sysinfo->product_name = NULL;
+    sysinfo->computer_name = NULL;
+    sysinfo->user_name = NULL;
+    sysinfo->model = NULL;
+    sysinfo->serial_number = NULL;
+    sysinfo->hardware_uuid = NULL;
+    sysinfo->architecture = NULL;
+    sysinfo->kernel_version = NULL;
+    sysinfo->uptime = NULL;
+    sysinfo->load_average = NULL;
+    sysinfo->num_cpu_cores = NULL;
+    sysinfo->memory_size = NULL;
+    sysinfo->swap_usage = NULL;
+    sysinfo->available_disk_space = NULL;
+    sysinfo->cpu_temperature = NULL;
+    sysinfo->battery_percentage = NULL;
+    sysinfo->ip_address = NULL;
+    sysinfo->gateway = NULL;
+}
+
+void print_sysinfo(const Darwin_SysInfo* sysinfo) {
+    if (sysinfo == NULL) return; // Safety check
+
+    printf("--------------------------------------------------\n");
+    printf("%-30s | %s\n", "Category", "Value");
+    printf("--------------------------------------------------\n");
+
+    // System Version Information
+    if (sysinfo->product_name) printf("%-30s | %s\n", "Product Name", sysinfo->product_name);
+    if (sysinfo->product_version) printf("%-30s | %s\n", "Product Version", sysinfo->product_version);
+    if (sysinfo->build_version) printf("%-30s | %s\n", "Build Version", sysinfo->build_version);
+    printf("--------------------------------------------------\n");
+
+    // Host and User Information
+    if (sysinfo->computer_name) printf("%-30s | %s\n", "Computer Name", sysinfo->computer_name);
+    if (sysinfo->user_name) printf("%-30s | %s\n", "User Name", sysinfo->user_name);
+    printf("--------------------------------------------------\n");
+
+    // Hardware Information
+    if (sysinfo->model) printf("%-30s | %s\n", "Model", sysinfo->model);
+    if (sysinfo->serial_number) printf("%-30s | %s\n", "Serial Number", sysinfo->serial_number);
+    if (sysinfo->hardware_uuid) printf("%-30s | %s\n", "Hardware UUID", sysinfo->hardware_uuid);
+    if (sysinfo->architecture) printf("%-30s | %s\n", "Architecture", sysinfo->architecture);
+    if (sysinfo->num_cpu_cores) printf("%-30s | %s\n", "CPU Cores", sysinfo->num_cpu_cores);
+
+    if (sysinfo->memory_size) {
+        long long bytes = atoll(sysinfo->memory_size);
+        double gb = (double)bytes / (1024 * 1024 * 1024);
+        printf("%-30s | %.2f GB\n", "Memory Size", gb);
+    }
+
+    printf("--------------------------------------------------\n");
+
+    // Kernel Information
+    if (sysinfo->kernel_version) printf("%-30s | %s\n", "Kernel Version", sysinfo->kernel_version);
+    printf("--------------------------------------------------\n");
+
+    // System Status
+    if (sysinfo->uptime) printf("%-30s | %s\n", "Uptime", sysinfo->uptime);
+    if (sysinfo->load_average) {
+        // Parse load averages (assuming space-separated)
+        char* load_copy = strdup(sysinfo->load_average); // Create a copy
+        if (load_copy) {
+            char* token = strtok(load_copy, " ");
+            printf("%-30s | ", "Load Average");
+            if (token) printf("1 min: %s", token);
+            token = strtok(NULL, " ");
+            if (token) printf(", 5 min: %s", token);
+            token = strtok(NULL, " ");
+            if (token) printf(", 15 min: %s", token);
+            printf("\n");
+            free(load_copy); // Free the copy
+        }
+    }
+
+    if (sysinfo->swap_usage) printf("%-30s | %s\n", "Swap Usage", sysinfo->swap_usage);
+    if (sysinfo->available_disk_space) printf("%-30s | %s\n", "Available Disk Space", sysinfo->available_disk_space);
+    if (sysinfo->cpu_temperature) printf("%-30s | %s\n", "CPU Temperature", sysinfo->cpu_temperature);
+    if (sysinfo->battery_percentage) printf("%-30s | %s\n", "Battery Percentage", sysinfo->battery_percentage);
+    printf("--------------------------------------------------\n");
+
+    // Network Information
+    if (sysinfo->ip_address) printf("%-30s | %s\n", "IP Address", sysinfo->ip_address);
+    if (sysinfo->gateway) printf("%-30s | %s\n", "Gateway", sysinfo->gateway);
+
+    printf("--------------------------------------------------\n");
+}
+
+/*==========================================================================================*/
+
 
 // Function to handle system information
 void system_information() {
@@ -634,38 +878,353 @@ void system_information() {
             printf("Windows Version: %s%s%s\n", COLOR_GREEN, win_ver, COLOR_NC);
             free(win_ver);
         }
-    #elif defined(__APPLE__)
+#endif
+
+#ifdef __APPLE__
         char* mac_ver = execute_command("sw_vers -productVersion");
-        if (mac_ver) {
-            // Remove newlines
-            mac_ver[strcspn(mac_ver, "\r\n")] = 0;
-            printf("macOS Version: %s%s%s\n", COLOR_GREEN, mac_ver, COLOR_NC);
-            free(mac_ver);
-        }
-    #else
+        free(mac_ver);
+        char* mac_build = execute_command("sw_vers -buildVersion");
+        char*  mac_name = execute_command("sw_vers -productName");
+        char*  mac_host = execute_command("scutil --get ComputerName");
+        char* mac_user = execute_command("scutil --get UserName");
+        char* mac_model = execute_command("sysctl -n hw.model");
+        char* mac_serial = execute_command("system_profiler SPHardwareDataType | awk '/Serial/ {print $4}'");
+        char* mac_uuid = execute_command("system_profiler SPHardwareDataType | awk '/Hardware UUID/ {print $3}'");
+        char* mac_arch = execute_command("uname -m");
+        char* mac_kernel = execute_command("uname -r");
+        char* mac_uptime = execute_command("uptime");
+        char* mac_load = execute_command("sysctl -n vm.loadavg");
+        char* mac_cpu = execute_command("sysctl -n hw.ncpu");
+        char* mac_mem = execute_command("sysctl -n hw.memsize");
+        char* mac_swap = execute_command("sysctl -n vm.swapusage");
+        char* mac_disk = execute_command("df -h / | awk '//// {print $4}'");
+        char* mac_temp = execute_command("sysctl -n machdep.xcpm.cpu_thermal_level");
+        char* mac_battery = execute_command("pmset -g batt | grep -o '[0-9]*%'");
+        char* mac_network = execute_command("ifconfig en0 | grep 'inet ' | awk '{print $2}'");
+        char* mac_gateway = execute_command("netstat -nr | grep 'default' | awk '{print $2}'");
+
+    if (mac_ver) {
+        mac_ver[strcspn(mac_ver, "\r\n")] = 0;
+        printf("[+] macOS Version: %s%s%s\n", COLOR_GREEN, mac_ver, COLOR_NC);
+        free(mac_ver);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve macOS version\n" COLOR_NC);
+    }
+
+    if (mac_build) {
+        mac_build[strcspn(mac_build, "\r\n")] = 0;
+        printf("[+] Build Version: %s%s%s\n", COLOR_GREEN, mac_build, COLOR_NC);
+        free(mac_build);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve build version\n" COLOR_NC);
+    }
+
+    if (mac_name) {
+        mac_name[strcspn(mac_name, "\r\n")] = 0;
+        printf("[+] Product Name: %s%s%s\n", COLOR_GREEN, mac_name, COLOR_NC);
+        free(mac_name);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve product name\n" COLOR_NC);
+    }
+
+    if (mac_host) {
+        mac_host[strcspn(mac_host, "\r\n")] = 0;
+        printf("[+] Computer Name: %s%s%s\n", COLOR_GREEN, mac_host, COLOR_NC);
+        free(mac_host);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve computer name\n" COLOR_NC);
+    }
+
+    if (mac_user) {
+        mac_user[strcspn(mac_user, "\r\n")] = 0;
+        printf("[+] User Name: %s%s%s\n", COLOR_GREEN, mac_user, COLOR_NC);
+        free(mac_user);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve user name\n" COLOR_NC);
+    }
+
+    if (mac_model) {
+        mac_model[strcspn(mac_model, "\r\n")] = 0;
+        printf("[+] Model: %s%s%s\n", COLOR_GREEN, mac_model, COLOR_NC);
+        free(mac_model);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve model\n" COLOR_NC);
+    }
+
+    if (mac_serial) {
+        mac_serial[strcspn(mac_serial, "\r\n")] = 0;
+        printf("[+] Serial Number: %s%s%s\n", COLOR_GREEN, mac_serial, COLOR_NC);
+        free(mac_serial);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve serial number\n" COLOR_NC);
+    }
+
+    if (mac_uuid) {
+        mac_uuid[strcspn(mac_uuid, "\r\n")] = 0;
+        printf("[+] Hardware UUID: %s%s%s\n", COLOR_GREEN, mac_uuid, COLOR_NC);
+        free(mac_uuid);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve hardware UUID\n" COLOR_NC);
+    }
+
+    if (mac_arch) {
+        mac_arch[strcspn(mac_arch, "\r\n")] = 0;
+        printf("[+] Architecture: %s%s%s\n", COLOR_GREEN, mac_arch, COLOR_NC);
+        free(mac_arch);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve architecture\n" COLOR_NC);
+    }
+
+    if (mac_kernel) {
+        mac_kernel[strcspn(mac_kernel, "\r\n")] = 0;
+        printf("[+] Kernel Version: %s%s%s\n", COLOR_GREEN, mac_kernel, COLOR_NC);
+        free(mac_kernel);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve kernel version\n" COLOR_NC);
+    }
+
+    if (mac_uptime) {
+        mac_uptime[strcspn(mac_uptime, "\r\n")] = 0;
+        printf("[+] Uptime: %s%s%s\n", COLOR_GREEN, mac_uptime, COLOR_NC);
+        free(mac_uptime);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve uptime\n" COLOR_NC);
+    }
+
+    if (mac_load) {
+        mac_load[strcspn(mac_load, "\r\n")] = 0;
+        printf("[+] Load Average: %s%s%s\n", COLOR_GREEN, mac_load, COLOR_NC);
+        free(mac_load);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve load average\n" COLOR_NC);
+    }
+
+    if (mac_cpu) {
+        mac_cpu[strcspn(mac_cpu, "\r\n")] = 0;
+        printf("[+] CPU Count: %s%s%s\n", COLOR_GREEN, mac_cpu, COLOR_NC);
+        free(mac_cpu);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve CPU count\n" COLOR_NC);
+    }
+
+    if (mac_mem) {
+        mac_mem[strcspn(mac_mem, "\r\n")] = 0;
+        printf("[+] Memory Size: %s%s%s bytes\n", COLOR_GREEN, mac_mem, COLOR_NC);
+        free(mac_mem);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve memory size\n" COLOR_NC);
+    }
+
+    if (mac_swap) {
+        mac_swap[strcspn(mac_swap, "\r\n")] = 0;
+        printf("[+] Swap Usage: %s%s%s\n", COLOR_GREEN, mac_swap, COLOR_NC);
+        free(mac_swap);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve swap usage\n" COLOR_NC);
+    }
+
+    if (mac_disk) {
+        mac_disk[strcspn(mac_disk, "\r\n")] = 0;
+        printf("[+] Disk Space Available: %s%s%s\n", COLOR_GREEN, mac_disk, COLOR_NC);
+        free(mac_disk);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve disk space\n" COLOR_NC);
+    }
+
+    if (mac_temp) {
+        mac_temp[strcspn(mac_temp, "\r\n")] = 0;
+        printf("[+] CPU Thermal Level: %s%s%s\n", COLOR_GREEN, mac_temp, COLOR_NC);
+        free(mac_temp);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve CPU thermal level\n" COLOR_NC);
+    }
+
+    if (mac_battery) {
+        mac_battery[strcspn(mac_battery, "\r\n")] = 0;
+        printf("[+] Battery Percentage: %s%s%s\n", COLOR_GREEN, mac_battery, COLOR_NC);
+        free(mac_battery);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve battery percentage\n" COLOR_NC);
+    }
+
+    if (mac_network) {
+        mac_network[strcspn(mac_network, "\r\n")] = 0;
+        printf("[+] Network IP Address: %s%s%s\n", COLOR_GREEN, mac_network, COLOR_NC);
+        free(mac_network);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve network IP address\n" COLOR_NC);
+    }
+
+    if (mac_gateway) {
+        mac_gateway[strcspn(mac_gateway, "\r\n")] = 0;
+        printf("[+] Gateway IP Address: %s%s%s\n", COLOR_GREEN, mac_gateway, COLOR_NC);
+        free(mac_gateway);
+    } else {
+        fprintf(stderr, COLOR_RED "Error: Unable to retrieve gateway IP address\n" COLOR_NC);
+    }
+
+
+    #ifdef __LINUX__
         char* linux_ver = execute_command("cat /etc/issue | head -n 1");
+        char*  linux_host = execute_command("hostname");
+        char* linux_user = execute_command("whoami");
+        char* linux_model = execute_command("uname -m");
+        char* linux_arch = execute_command("uname -m");
+        char* linux_kernel = execute_command("uname
+             -r");
+        char* linux_uptime = execute_command("uptime -p");
+        char* linux_load = execute_command("uptime | awk '{print $10 $11 $12}'");
+        char* linux_cpu = execute_command("nproc");
+        char* linux_mem = execute_command("free -h | awk '/Mem:/ {print $2}'");
+        char* linux_swap = execute_command("free -h | awk '/Swap:/ {print $2}'");
+        char* linux_disk = execute_command("df -h / | awk '// {print $4}'");
+        char* linux_temp = execute_command("sensors | grep 'Package id 0' | awk '{print $4}'");
+        char* linux_battery = execute_command("acpi -b | grep 'Battery 0' | awk '{
+            print $4}'");
+        char* linux_network = execute_command("hostname -I | awk '{print $1}'");
+        char* linux_gateway = execute_command("ip route | grep 'default' | awk '{print $3}'");
+
         if (linux_ver) {
             // Remove newlines
             linux_ver[strcspn(linux_ver, "\r\n")] = 0;
             printf("Linux Distribution: %s%s%s\n", COLOR_GREEN, linux_ver, COLOR_NC);
-            free(linux_ver);
-        }
-    #endif
-
-    char* hostname = execute_command(
-        #ifdef _WIN32
-            "hostname"
-        #else
-            "hostname"
-        #endif
-    );
-
-    if (hostname) {
-        // Remove newlines
-        hostname[strcspn(hostname, "\r\n")] = 0;
-        printf("Hostname: %s%s%s\n", COLOR_GREEN, hostname, COLOR_NC);
-        free(hostname);
+            // Conditional prints with formatting
+    if (linux_ver) {
+        linux_ver[strcspn(linux_ver, "\r\n")] = 0;
+        printf("[+] Linux Distribution: %s%s%s\n", COLOR_GREEN, linux_ver, COLOR_NC);
+        free(linux_ver);
     }
+
+    if (linux_host) {
+        linux_host[strcspn(linux_host, "\r\n")] = 0;
+        printf("[+] Hostname: %s%s%s\n", COLOR_GREEN, linux_host, COLOR_NC);
+        free(linux_host);
+    }
+
+    if (linux_user) {
+        linux_user[strcspn(linux_user, "\r\n")] = 0;
+        printf("[+] Current User: %s%s%s\n", COLOR_GREEN, linux_user, COLOR_NC);
+        free(linux_user);
+    }
+
+    if (linux_model) {
+        linux_model[strcspn(linux_model, "\r\n")] = 0;
+        printf("[+] System Model: %s%s%s\n", COLOR_GREEN, linux_model, COLOR_NC);
+        free(linux_model);
+    }
+
+    if (linux_arch) {
+        linux_arch[strcspn(linux_arch, "\r\n")] = 0;
+        printf("[+] Architecture: %s%s%s\n", COLOR_GREEN, linux_arch, COLOR_NC);
+        free(linux_arch);
+    }
+
+    if (linux_kernel) {
+        linux_kernel[strcspn(linux_kernel, "\r\n")] = 0;
+        printf("[+] Kernel Version: %s%s%s\n", COLOR_GREEN, linux_kernel, COLOR_NC);
+        free(linux_kernel);
+    }
+
+    if (linux_uptime) {
+        linux_uptime[strcspn(linux_uptime, "\r\n")] = 0;
+        printf("[+] Uptime: %s%s%s\n", COLOR_GREEN, linux_uptime, COLOR_NC);
+        free(linux_uptime);
+    }
+
+    if (linux_load) {
+        linux_load[strcspn(linux_load, "\r\n")] = 0;
+        printf("[+] Load Average: %s%s%s\n", COLOR_GREEN, linux_load, COLOR_NC);
+        free(linux_load);
+    }
+
+    if (linux_cpu) {
+        linux_cpu[strcspn(linux_cpu, "\r\n")] = 0;
+        printf("[+] CPU Cores: %s%s%s\n", COLOR_GREEN, linux_cpu, COLOR_NC);
+        free(linux_cpu);
+    }
+
+    if (linux_mem) {
+        linux_mem[strcspn(linux_mem, "\r\n")] = 0;
+        printf("[+] Total Memory: %s%s%s\n", COLOR_GREEN, linux_mem, COLOR_NC);
+        free(linux_mem);
+    }
+
+    if (linux_swap) {
+        linux_swap[strcspn(linux_swap, "\r\n")] = 0;
+        printf("[+] Total Swap: %s%s%s\n", COLOR_GREEN, linux_swap, COLOR_NC);
+        free(linux_swap);
+    }
+
+    if (linux_disk) {
+        linux_disk[strcspn(linux_disk, "\r\n")] = 0;
+        printf("[+] Disk Space Available: %s%s%s\n", COLOR_GREEN, linux_disk, COLOR_NC);
+        free(linux_disk);
+    }
+
+    if (linux_temp) {
+        linux_temp[strcspn(linux_temp, "\r\n")] = 0;
+        printf("[+] CPU Temperature: %s%s%s\n", COLOR_GREEN, linux_temp, COLOR_NC);
+        free(linux_temp);
+    }
+
+    if (linux_battery) {
+        linux_battery[strcspn(linux_battery, "\r\n")] = 0;
+        printf("[+] Battery Level: %s%s%s\n", COLOR_GREEN, linux_battery, COLOR_NC);
+        free(linux_battery);
+    }
+
+    if (linux_network) {
+        linux_network[strcspn(linux_network, "\r\n")] = 0;
+        printf("[+] Network IP Address: %s%s%s\n", COLOR_GREEN, linux_network, COLOR_NC);
+        free(linux_network);
+    }
+
+    if (linux_gateway)
+    {
+        linux_gateway[strcspn(linux_gateway, "\r\n")] = 0;
+        printf("[+] Default Gateway: %s%s%s\n", COLOR_GREEN, linux_gateway, COLOR_NC);
+        free(linux_gateway);
+    }
+}
+    #endif
+#endif
+    //
+    // char* load = execute_command(
+    //     #ifdef _WIN32
+    //         "wmic cpu get loadpercentage"
+    //     #else
+    //         "cat /proc/loadavg | awk '{print $1, $2, $3}'"
+    //     #endif
+    // );
+    //
+    // char* cpu = execute_command(
+    //     #ifdef _WIN32
+    //         "wmic cpu get name"
+    //     #else
+    //         "cat /proc/cpuinfo | grep 'model name' | uniq"
+    //     #endif
+    // );
+    //
+    // char* mem = execute_command(
+    //     #ifdef _WIN32
+    //         "wmic OS get FreePhysicalMemory /Value"
+    //     #else
+    //         "free -h | grep Mem | awk '{print $2}'"
+    //
+    //     #else
+    //         "uptime
+    //     #else
+    //         "hostname"
+    //
+    //     #endif
+    // );
+
+    // if (hostname) {
+    //     // Remove newlines
+    //     hostname[strcspn(hostname, "\r\n")] = 0;
+    //     printf("Hostname: %s%s%s\n", COLOR_GREEN, hostname, COLOR_NC);
+    //     free(hostname);
+    // }
 
     printf("%s%s%s\n", COLOR_GREEN, SEPARATOR, COLOR_NC);
 
@@ -814,4 +1373,4 @@ int main(int argc, char* argv[])
             break;
         }
     }
-}
+};
