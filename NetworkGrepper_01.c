@@ -9,6 +9,13 @@
 #include <sys/ioctl.h>
 #include <stdbool.h> // For bool type
 
+// TODO: Run across platfors
+// TODO: Request user if they want automized mac / ip randomization
+// TODO: Make it so it logs, and hides in useres desktop (hidden)
+// TODO: Reverse TCP-shell
+// TODO: Find logs and password hashes and store them
+// TODO: Link to NetVision for IOT Grepping
+
 #ifdef _WIN32
     #include <winsock2.h>
     #include <windows.h>
@@ -1064,122 +1071,120 @@ void system_information() {
     }
 
 
-    #ifdef __LINUX__
-        char* linux_ver = execute_command("cat /etc/issue | head -n 1");
-        char*  linux_host = execute_command("hostname");
-        char* linux_user = execute_command("whoami");
-        char* linux_model = execute_command("uname -m");
-        char* linux_arch = execute_command("uname -m");
-        char* linux_kernel = execute_command("uname
-             -r");
-        char* linux_uptime = execute_command("uptime -p");
-        char* linux_load = execute_command("uptime | awk '{print $10 $11 $12}'");
-        char* linux_cpu = execute_command("nproc");
-        char* linux_mem = execute_command("free -h | awk '/Mem:/ {print $2}'");
-        char* linux_swap = execute_command("free -h | awk '/Swap:/ {print $2}'");
-        char* linux_disk = execute_command("df -h / | awk '// {print $4}'");
-        char* linux_temp = execute_command("sensors | grep 'Package id 0' | awk '{print $4}'");
-        char* linux_battery = execute_command("acpi -b | grep 'Battery 0' | awk '{
-            print $4}'");
-        char* linux_network = execute_command("hostname -I | awk '{print $1}'");
-        char* linux_gateway = execute_command("ip route | grep 'default' | awk '{print $3}'");
+#ifdef __linux__
+    char* linux_ver = execute_command("cat /etc/issue | head -n 1");
+    char* linux_host = execute_command("hostname");
+    char* linux_user = execute_command("whoami");
+    char* linux_model = execute_command("uname -m");
+         -r");
+    char* linux_uptime = execute_command("uptime -p");
+    char* linux_load = execute_command("uptime | awk '{print $10 $11 $12}'");
+    char* linux_cpu = execute_command("nproc");
+    char* linux_mem = execute_command("free -h | awk '/Mem:/ {print $2}'");
+    char* linux_swap = execute_command("free -h | awk '/Swap:/ {print $2}'");
+    char* linux_disk = execute_command("df -h / | awk '// {print $4}'");
+    char* linux_temp = execute_command("sensors | grep 'Package id 0' | awk '{print $4}'");
+    char* linux_battery = execute_command("acpi -b | grep 'Battery 0' | awk '{
+        print $4}'");
+    char* linux_network = execute_command("hostname -I | awk '{print $1}'");
+    char* linux_gateway = execute_command("ip route | grep 'default' | awk '{print $3}'");
 
-        if (linux_ver) {
-            // Remove newlines
-            linux_ver[strcspn(linux_ver, "\r\n")] = 0;
-            printf("Linux Distribution: %s%s%s\n", COLOR_GREEN, linux_ver, COLOR_NC);
-            // Conditional prints with formatting
+    if (linux_ver) {
+        // Remove newlines
+        linux_ver[strcspn(linux_ver, "\r\n")] = 0;
+        printf("Linux Distribution: %s%s%s\n", COLOR_GREEN, linux_ver, COLOR_NC);
+        // Conditional prints with formatting
     if (linux_ver) {
         linux_ver[strcspn(linux_ver, "\r\n")] = 0;
         printf("[+] Linux Distribution: %s%s%s\n", COLOR_GREEN, linux_ver, COLOR_NC);
         free(linux_ver);
     }
 
-    if (linux_host) {
-        linux_host[strcspn(linux_host, "\r\n")] = 0;
-        printf("[+] Hostname: %s%s%s\n", COLOR_GREEN, linux_host, COLOR_NC);
-        free(linux_host);
-    }
+if (linux_host) {
+    linux_host[strcspn(linux_host, "\r\n")] = 0;
+    printf("[+] Hostname: %s%s%s\n", COLOR_GREEN, linux_host, COLOR_NC);
+    free(linux_host);
+}
 
-    if (linux_user) {
-        linux_user[strcspn(linux_user, "\r\n")] = 0;
-        printf("[+] Current User: %s%s%s\n", COLOR_GREEN, linux_user, COLOR_NC);
-        free(linux_user);
-    }
+if (linux_user) {
+    linux_user[strcspn(linux_user, "\r\n")] = 0;
+    printf("[+] Current User: %s%s%s\n", COLOR_GREEN, linux_user, COLOR_NC);
+    free(linux_user);
+}
 
-    if (linux_model) {
-        linux_model[strcspn(linux_model, "\r\n")] = 0;
-        printf("[+] System Model: %s%s%s\n", COLOR_GREEN, linux_model, COLOR_NC);
-        free(linux_model);
-    }
+if (linux_model) {
+    linux_model[strcspn(linux_model, "\r\n")] = 0;
+    printf("[+] System Model: %s%s%s\n", COLOR_GREEN, linux_model, COLOR_NC);
+    free(linux_model);
+}
 
-    if (linux_arch) {
-        linux_arch[strcspn(linux_arch, "\r\n")] = 0;
-        printf("[+] Architecture: %s%s%s\n", COLOR_GREEN, linux_arch, COLOR_NC);
-        free(linux_arch);
-    }
+if (linux_arch) {
+    linux_arch[strcspn(linux_arch, "\r\n")] = 0;
+    printf("[+] Architecture: %s%s%s\n", COLOR_GREEN, linux_arch, COLOR_NC);
+    free(linux_arch);
+}
 
-    if (linux_kernel) {
-        linux_kernel[strcspn(linux_kernel, "\r\n")] = 0;
-        printf("[+] Kernel Version: %s%s%s\n", COLOR_GREEN, linux_kernel, COLOR_NC);
-        free(linux_kernel);
-    }
+if (linux_kernel) {
+    linux_kernel[strcspn(linux_kernel, "\r\n")] = 0;
+    printf("[+] Kernel Version: %s%s%s\n", COLOR_GREEN, linux_kernel, COLOR_NC);
+    free(linux_kernel);
+}
 
-    if (linux_uptime) {
-        linux_uptime[strcspn(linux_uptime, "\r\n")] = 0;
-        printf("[+] Uptime: %s%s%s\n", COLOR_GREEN, linux_uptime, COLOR_NC);
-        free(linux_uptime);
-    }
+if (linux_uptime) {
+    linux_uptime[strcspn(linux_uptime, "\r\n")] = 0;
+    printf("[+] Uptime: %s%s%s\n", COLOR_GREEN, linux_uptime, COLOR_NC);
+    free(linux_uptime);
+}
 
-    if (linux_load) {
-        linux_load[strcspn(linux_load, "\r\n")] = 0;
-        printf("[+] Load Average: %s%s%s\n", COLOR_GREEN, linux_load, COLOR_NC);
-        free(linux_load);
-    }
+if (linux_load) {
+    linux_load[strcspn(linux_load, "\r\n")] = 0;
+    printf("[+] Load Average: %s%s%s\n", COLOR_GREEN, linux_load, COLOR_NC);
+    free(linux_load);
+}
 
-    if (linux_cpu) {
-        linux_cpu[strcspn(linux_cpu, "\r\n")] = 0;
-        printf("[+] CPU Cores: %s%s%s\n", COLOR_GREEN, linux_cpu, COLOR_NC);
-        free(linux_cpu);
-    }
+if (linux_cpu) {
+    linux_cpu[strcspn(linux_cpu, "\r\n")] = 0;
+    printf("[+] CPU Cores: %s%s%s\n", COLOR_GREEN, linux_cpu, COLOR_NC);
+    free(linux_cpu);
+}
 
-    if (linux_mem) {
-        linux_mem[strcspn(linux_mem, "\r\n")] = 0;
-        printf("[+] Total Memory: %s%s%s\n", COLOR_GREEN, linux_mem, COLOR_NC);
-        free(linux_mem);
-    }
+if (linux_mem) {
+    linux_mem[strcspn(linux_mem, "\r\n")] = 0;
+    printf("[+] Total Memory: %s%s%s\n", COLOR_GREEN, linux_mem, COLOR_NC);
+    free(linux_mem);
+}
 
-    if (linux_swap) {
-        linux_swap[strcspn(linux_swap, "\r\n")] = 0;
-        printf("[+] Total Swap: %s%s%s\n", COLOR_GREEN, linux_swap, COLOR_NC);
-        free(linux_swap);
-    }
+if (linux_swap) {
+    linux_swap[strcspn(linux_swap, "\r\n")] = 0;
+    printf("[+] Total Swap: %s%s%s\n", COLOR_GREEN, linux_swap, COLOR_NC);
+    free(linux_swap);
+}
 
-    if (linux_disk) {
-        linux_disk[strcspn(linux_disk, "\r\n")] = 0;
-        printf("[+] Disk Space Available: %s%s%s\n", COLOR_GREEN, linux_disk, COLOR_NC);
-        free(linux_disk);
-    }
+if (linux_disk) {
+    linux_disk[strcspn(linux_disk, "\r\n")] = 0;
+    printf("[+] Disk Space Available: %s%s%s\n", COLOR_GREEN, linux_disk, COLOR_NC);
+    free(linux_disk);
+}
 
-    if (linux_temp) {
-        linux_temp[strcspn(linux_temp, "\r\n")] = 0;
-        printf("[+] CPU Temperature: %s%s%s\n", COLOR_GREEN, linux_temp, COLOR_NC);
-        free(linux_temp);
-    }
+if (linux_temp) {
+    linux_temp[strcspn(linux_temp, "\r\n")] = 0;
+    printf("[+] CPU Temperature: %s%s%s\n", COLOR_GREEN, linux_temp, COLOR_NC);
+    free(linux_temp);
+}
 
-    if (linux_battery) {
-        linux_battery[strcspn(linux_battery, "\r\n")] = 0;
-        printf("[+] Battery Level: %s%s%s\n", COLOR_GREEN, linux_battery, COLOR_NC);
-        free(linux_battery);
-    }
+if (linux_battery) {
+    linux_battery[strcspn(linux_battery, "\r\n")] = 0;
+    printf("[+] Battery Level: %s%s%s\n", COLOR_GREEN, linux_battery, COLOR_NC);
+    free(linux_battery);
+}
 
-    if (linux_network) {
-        linux_network[strcspn(linux_network, "\r\n")] = 0;
-        printf("[+] Network IP Address: %s%s%s\n", COLOR_GREEN, linux_network, COLOR_NC);
-        free(linux_network);
-    }
+if (linux_network) {
+    linux_network[strcspn(linux_network, "\r\n")] = 0;
+    printf("[+] Network IP Address: %s%s%s\n", COLOR_GREEN, linux_network, COLOR_NC);
+    free(linux_network);
+}
 
-    if (linux_gateway)
+if (linux_gateway)
     {
         linux_gateway[strcspn(linux_gateway, "\r\n")] = 0;
         printf("[+] Default Gateway: %s%s%s\n", COLOR_GREEN, linux_gateway, COLOR_NC);
