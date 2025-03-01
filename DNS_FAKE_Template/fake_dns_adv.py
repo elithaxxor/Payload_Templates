@@ -13,6 +13,13 @@ from logging.handlers import RotatingFileHandler
 from collections import defaultdict
 from dnslib import DNSRecord, QTYPE, RR, A
 
+################################################
+DOMAIN_IP_MAP = {
+    "example.com.": "192.168.1.101",
+    "test.com.": "192.168.1.102",
+    # Add more domain-IP mappings as needed.
+}
+##################################################
 # Configure logging with rotation
 log_handler = RotatingFileHandler("dns_queries.log", maxBytes=5*1024*1024, backupCount=5)
 log_handler.setFormatter(logging.Formatter("%(asctime)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"))
@@ -27,16 +34,10 @@ logging.basicConfig(
     datefmt="%Y-%m-%d %H:%M:%S"
 )
 
+
+##############################################################################
 # Dictionary to track query frequency
 query_tracker = defaultdict(int)
-
-# Dictionary mapping domain names to IP addresses.
-DOMAIN_IP_MAP = {
-    "example.com.": "192.168.1.101",
-    "test.com.": "192.168.1.102",
-    # Add more domain-IP mappings as needed.
-}
-
 def log_query(client_ip, query, response):
     """
     Logs the DNS query details including client IP, query, response, and frequency.
@@ -51,7 +52,7 @@ def log_query(client_ip, query, response):
     logger.info(f"Client: {client_ip}, Query: {query}, Response: {response}, Frequency: {frequency}")
 
 
-
+################################################################################
 class DNSUDPHandler(socketserver.BaseRequestHandler):
     """
     DNSHandler class to handle incoming DNS requests over UDP.
