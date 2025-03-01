@@ -124,9 +124,14 @@ def main():
     """
     Main function to start the fake DNS server on UDP and TCP ports.
     """
+    router_ip = input("Enter the router IP (default is ''): ") or ''
+    victim_ip = input("Enter the victim IP (default is ''): ") or ''
+    ip_address = router_ip if router_ip else victim_ip if victim_ip else ''
+    port = input("Enter the port (default is 80): ") or 80
+
     print(f"Starting fake DNS server on UDP and TCP port {port}")
-    udp_server = socketserver.UDPServer(('', port), DNSUDPHandler)
-    tcp_server = socketserver.TCPServer(('', port), DNSTCPHandler)
+    udp_server = socketserver.UDPServer((ip_address, int(port)), DNSUDPHandler)
+    tcp_server = socketserver.TCPServer((ip_address, int(port)), DNSTCPHandler)
 
     try:
         from threading import Thread
@@ -155,7 +160,4 @@ def main():
         logger.info("[-] Fake DNS server shut down.")
 
 if __name__ == "__main__":
-    port = 53
-    if len(sys.argv) > 1:
-        port = int(sys.argv[1])
     main()
