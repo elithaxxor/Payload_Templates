@@ -16,14 +16,13 @@
 #include <sys/wait.h>
 #endif
 
-// Define colors for terminal output
+// [Color Schema] output
 struct colors {
     char *GREEN;
     char *RED;
     char *YELLOW;
     char *NC;
 };
-
 struct colors color_codes = {
     "\033[92m",
     "\033[91m",
@@ -32,6 +31,8 @@ struct colors color_codes = {
 };
 
 // Function to execute shell commands and get output
+// 1.Shell uses popen() to pipe comands & read in 128 byte buffers
+// 2.Dynamically allot memory to complete useres input, and return data (data type error handling may be needed
 char* execute_command(const char* command) {
     char buffer[128];
     char* result = NULL;
